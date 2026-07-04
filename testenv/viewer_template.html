@@ -1,0 +1,371 @@
+<title>Robot Arena Replay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f4f4f5;
+    --fg: #18181b;
+    --muted: #71717a;
+    --grid: #e4e4e7;
+    --grid-strong: #a1a1aa;
+    --robot: #2563eb;
+    --bait: #f59e0b;
+    --bait-ring: #d97706;
+    --pop: #16a34a;
+    --btn-bg: #e4e4e7;
+    --btn-fg: #18181b;
+    --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101014;
+      --panel: #1c1c22;
+      --fg: #ececef;
+      --muted: #9c9ca6;
+      --grid: #2c2c34;
+      --grid-strong: #55555f;
+      --robot: #60a5fa;
+      --bait: #fbbf24;
+      --bait-ring: #f59e0b;
+      --pop: #4ade80;
+      --btn-bg: #2c2c34;
+      --btn-fg: #ececef;
+      --accent: #60a5fa;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --panel: #f4f4f5; --fg: #18181b; --muted: #71717a;
+    --grid: #e4e4e7; --grid-strong: #a1a1aa; --robot: #2563eb;
+    --bait: #f59e0b; --bait-ring: #d97706; --pop: #16a34a;
+    --btn-bg: #e4e4e7; --btn-fg: #18181b; --accent: #2563eb;
+  }
+  :root[data-theme="dark"] {
+    --bg: #101014; --panel: #1c1c22; --fg: #ececef; --muted: #9c9ca6;
+    --grid: #2c2c34; --grid-strong: #55555f; --robot: #60a5fa;
+    --bait: #fbbf24; --bait-ring: #f59e0b; --pop: #4ade80;
+    --btn-bg: #2c2c34; --btn-fg: #ececef; --accent: #60a5fa;
+  }
+  html, body { background: var(--bg); color: var(--fg); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0; padding: 16px; display: flex; justify-content: center;
+  }
+  .app { width: min(680px, 96vw); }
+  header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px 16px; margin-bottom: 10px;
+  }
+  h1 { font-size: 1.05rem; margin: 0; font-weight: 650; }
+  .stats { display: flex; gap: 18px; }
+  .stat { text-align: right; }
+  .stat .label {
+    display: block; font-size: 0.66rem; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted);
+  }
+  .stat .value {
+    font-variant-numeric: tabular-nums; font-weight: 650; font-size: 1.0rem;
+  }
+  .stat .sub { font-size: 0.7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  canvas {
+    display: block; width: 100%; aspect-ratio: 1;
+    background: var(--panel); border-radius: 10px;
+  }
+  .controls {
+    margin-top: 12px; padding: 10px 14px; background: var(--panel);
+    border-radius: 10px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .row { display: flex; align-items: center; gap: 10px; }
+  button {
+    border: 0; border-radius: 8px; background: var(--btn-bg); color: var(--btn-fg);
+    font-size: 0.95rem; padding: 6px 12px; cursor: pointer; line-height: 1.2;
+  }
+  button:disabled { opacity: 0.35; cursor: default; }
+  button.play {
+    background: var(--accent); color: #fff; font-weight: 650;
+    min-width: 86px; padding: 7px 14px;
+  }
+  input[type="range"] { flex: 1; accent-color: var(--accent); min-width: 60px; }
+  .mono { font-variant-numeric: tabular-nums; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+  .speedwrap { display: flex; align-items: center; gap: 8px; min-width: 180px; }
+  .speedwrap input { width: 110px; flex: none; }
+  .legend {
+    margin-top: 10px; display: flex; gap: 18px; flex-wrap: wrap;
+    align-items: center; font-size: 0.75rem; color: var(--muted);
+  }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Robot Arena Replay</h1>
+    <div class="stats">
+      <div class="stat">
+        <span class="label">Time</span>
+        <span class="value" id="timeVal">0 s</span>
+        <span class="sub" id="clockVal">0:00:00</span>
+      </div>
+      <div class="stat">
+        <span class="label">Score</span>
+        <span class="value" id="scoreVal">0</span>
+        <span class="sub" id="rateVal"></span>
+      </div>
+      <div class="stat">
+        <span class="label">Caught</span>
+        <span class="value" id="caughtVal">0</span>
+        <span class="sub" id="caughtSub"></span>
+      </div>
+    </div>
+  </header>
+
+  <canvas id="cv"></canvas>
+
+  <div class="controls">
+    <div class="row">
+      <button id="prevBtn" title="Previous step (1 s)" disabled>&#9198;</button>
+      <button id="playBtn" class="play">&#9654; Play</button>
+      <button id="nextBtn" title="Next step (1 s)" disabled>&#9197;</button>
+      <div class="speedwrap">
+        <span class="mono">Speed</span>
+        <input type="range" id="speedSlider" min="0" max="7" step="1" value="2">
+        <span class="mono" id="speedVal">1&times;</span>
+      </div>
+    </div>
+    <div class="row">
+      <span class="mono" id="progLeft">0</span>
+      <input type="range" id="progress" step="0.05">
+      <span class="mono" id="progRight">0</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="item">
+      <svg width="16" height="14"><polygon points="2,1 15,7 2,13" fill="var(--robot)"/></svg>
+      robot (points along its heading)
+    </span>
+    <span class="item">
+      <svg width="34" height="16">
+        <circle cx="6" cy="8" r="3.5" fill="var(--bait)" opacity="0.85"/>
+        <circle cx="22" cy="8" r="7" fill="var(--bait)" opacity="0.85"/>
+      </svg>
+      bait (radius = value)
+    </span>
+    <span class="item">
+      <svg width="16" height="16">
+        <circle cx="8" cy="8" r="5" fill="var(--bait)" opacity="0.85"/>
+        <path d="M 8 1.5 A 6.5 6.5 0 1 1 2.4 4.8" fill="none"
+              stroke="var(--bait-ring)" stroke-width="2"/>
+      </svg>
+      ring = remaining lifetime (3 s)
+    </span>
+  </div>
+</div>
+
+<script>
+'use strict';
+const TRACE = __TRACE_JSON__;
+
+const T0 = TRACE.t0, T1 = TRACE.t1;
+const LIFE = TRACE.bait_life;
+const [GMIN, GMAX] = TRACE.grid;
+const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16, 32];
+
+let simTime = T0;
+let playing = false;
+let speed = 1;
+let lastTs = null;
+let scrubbing = false;
+
+// Direction of travel during segment i (last non-zero move carries over)
+const segDir = [];
+{
+  let d = [1, 0];
+  for (const m of TRACE.moves) {
+    if (m[0] !== 0 || m[1] !== 0) d = m;
+    segDir.push(d);
+  }
+}
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const playBtn = document.getElementById('playBtn');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const progress = document.getElementById('progress');
+const speedSlider = document.getElementById('speedSlider');
+
+progress.min = T0;
+progress.max = T1;
+progress.value = T0;
+document.getElementById('progLeft').textContent = T0 + ' s';
+document.getElementById('progRight').textContent = T1 + ' s';
+document.getElementById('caughtSub').textContent = 'of ' + TRACE.appeared + ' appeared';
+
+const rootStyle = () => getComputedStyle(document.documentElement);
+function css(name) { return rootStyle().getPropertyValue(name).trim(); }
+
+function setPlaying(on) {
+  playing = on;
+  playBtn.innerHTML = on ? '&#10074;&#10074; Pause' : '&#9654; Play';
+  prevBtn.disabled = on;
+  nextBtn.disabled = on;
+}
+
+playBtn.addEventListener('click', () => {
+  if (!playing && simTime >= T1) simTime = T0;
+  setPlaying(!playing);
+});
+prevBtn.addEventListener('click', () => {
+  simTime = Math.max(T0, Math.ceil(simTime - 1e-6) - 1);
+});
+nextBtn.addEventListener('click', () => {
+  simTime = Math.min(T1, Math.floor(simTime + 1e-6) + 1);
+});
+progress.addEventListener('input', () => { simTime = parseFloat(progress.value); });
+progress.addEventListener('pointerdown', () => { scrubbing = true; });
+window.addEventListener('pointerup', () => { scrubbing = false; });
+speedSlider.addEventListener('input', () => {
+  speed = SPEEDS[+speedSlider.value];
+  document.getElementById('speedVal').innerHTML = speed + '&times;';
+});
+
+function fmtClock(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function scoreAt(t) {
+  let score = 0, n = 0;
+  for (const c of TRACE.collects) {
+    if (c[0] > t) break;
+    score = c[2]; n++;
+  }
+  return [score, n];
+}
+
+function baitRadius(v, cell) {
+  const lo = Math.sqrt(TRACE.vmin), hi = Math.sqrt(TRACE.vmax);
+  const f = hi > lo ? (Math.sqrt(v) - lo) / (hi - lo) : 0.5;
+  return cell * (0.10 + 0.22 * f);
+}
+
+function render() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth;
+  if (cv.width !== Math.round(w * dpr)) {
+    cv.width = cv.height = Math.round(w * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, w);
+
+  const pad = w * 0.07;
+  const cell = (w - 2 * pad) / (GMAX - GMIN);
+  const X = gx => pad + (gx - GMIN) * cell;
+  const Y = gy => w - pad - (gy - GMIN) * cell;
+
+  // grid
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = css('--grid');
+  for (let i = GMIN; i <= GMAX; i++) {
+    ctx.beginPath(); ctx.moveTo(X(i), Y(GMIN)); ctx.lineTo(X(i), Y(GMAX)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(GMIN), Y(i)); ctx.lineTo(X(GMAX), Y(i)); ctx.stroke();
+  }
+  ctx.strokeStyle = css('--grid-strong');
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(X(GMIN), Y(GMAX), cell * (GMAX - GMIN), cell * (GMAX - GMIN));
+
+  // axis labels
+  ctx.fillStyle = css('--muted');
+  ctx.font = (w * 0.021) + 'px ui-sans-serif, system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = GMIN; i <= GMAX; i++) ctx.fillText(i, X(i), Y(GMIN) + 8);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let i = GMIN; i <= GMAX; i++) ctx.fillText(i, X(GMIN) - 8, Y(i));
+
+  // baits
+  const baitCol = css('--bait'), ringCol = css('--bait-ring');
+  for (const b of TRACE.baits) {
+    const gone = b.ct !== null ? Math.min(b.ct, b.ta + LIFE) : b.ta + LIFE;
+    if (simTime < b.ta || simTime >= gone) continue;
+    const r = baitRadius(b.v, cell);
+    const cx = X(b.x), cy = Y(b.y);
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = baitCol;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fill();
+    // remaining-lifetime ring
+    const frac = Math.max(0, (b.ta + LIFE - simTime) / LIFE);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = ringCol;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 4, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * frac);
+    ctx.stroke();
+    // value label
+    ctx.fillStyle = css('--fg');
+    ctx.font = '600 ' + (w * 0.02) + 'px ui-sans-serif, system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(b.v, cx, cy - r - 12);
+  }
+
+  // collect pop-ups (+value floating up for ~1.2 s)
+  ctx.font = '700 ' + (w * 0.026) + 'px ui-sans-serif, system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  for (const c of TRACE.collects) {
+    const age = simTime - c[0];
+    if (age < 0 || age > 1.2) continue;
+    const i = Math.min(Math.max(0, c[0] - T0), TRACE.robot.length - 1);
+    const p = TRACE.robot[i];
+    ctx.globalAlpha = 1 - age / 1.2;
+    ctx.fillStyle = css('--pop');
+    ctx.fillText('+' + c[1], X(p[0]), Y(p[1]) - 14 - age * 22);
+  }
+  ctx.globalAlpha = 1;
+
+  // robot (triangle pointing along its heading, position interpolated)
+  const tt = Math.min(Math.max(simTime, T0), T1) - T0;
+  const i = Math.min(Math.floor(tt), TRACE.robot.length - 2);
+  const f = Math.min(tt - i, 1);
+  const a = TRACE.robot[i], b = TRACE.robot[Math.min(i + 1, TRACE.robot.length - 1)];
+  const rx = a[0] + (b[0] - a[0]) * f, ry = a[1] + (b[1] - a[1]) * f;
+  const dir = segDir[Math.min(i, segDir.length - 1)] || [1, 0];
+  const ang = Math.atan2(-dir[1], dir[0]);   // canvas y axis points down
+  const s = cell * 0.30;
+  ctx.save();
+  ctx.translate(X(rx), Y(ry));
+  ctx.rotate(ang);
+  ctx.fillStyle = css('--robot');
+  ctx.beginPath();
+  ctx.moveTo(s, 0);
+  ctx.lineTo(-s * 0.65, s * 0.58);
+  ctx.lineTo(-s * 0.65, -s * 0.58);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function updateReadouts() {
+  const [score, n] = scoreAt(simTime);
+  document.getElementById('timeVal').textContent = simTime.toFixed(1) + ' s';
+  document.getElementById('clockVal').textContent = fmtClock(simTime);
+  document.getElementById('scoreVal').textContent = score.toFixed(0);
+  const min = Math.max((simTime - T0) / 60, 1e-9);
+  document.getElementById('rateVal').textContent =
+    simTime > T0 ? (score / min).toFixed(1) + ' / min' : '';
+  document.getElementById('caughtVal').textContent = n;
+}
+
+function frame(ts) {
+  if (playing) {
+    if (lastTs !== null) {
+      simTime += (ts - lastTs) / 1000 * speed;
+      if (simTime >= T1) { simTime = T1; setPlaying(false); }
+    }
+  }
+  lastTs = ts;
+  if (!scrubbing) progress.value = simTime;
+  updateReadouts();
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
