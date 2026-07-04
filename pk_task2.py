@@ -34,7 +34,10 @@ import os
 import random
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _DIR)
+if os.path.isdir(os.path.join(_DIR, '算法库')):        # robot_policy.py 已移入算法库/
+    sys.path.insert(0, os.path.join(_DIR, '算法库'))
 from robot_policy import load_events, LIFETIME        # noqa: E402  零依赖数据解析
 import bait_gen                                       # noqa: E402  合成序列（任务1拟合规律）
 
